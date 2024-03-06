@@ -127,8 +127,22 @@ class Blockchain {
         let self = this;
         return new Promise(async (resolve, reject) => {
             let getTheTimeFromMessage = parseInt(message.split(':')[1]);
+            let currentTime = parseInt(new Date().getTime().toString().slice(0,-3));
+            if ( (currentTime - getTheTimeFromMessage) < 300) {
 
-            
+                if (bitcoinMessage.verify(message, address, signature)) {
+
+                    let block = new BlockClass.Block({"owner":address, "star":star});
+
+                    await self._addBlock(block);
+
+                    resolve(block);
+                } else {
+                    reject(Error("Message is not verified"));
+                }
+            } else {
+                reject(Error("Rejected due to timeout"))
+            }
         });
     }
 
@@ -141,7 +155,12 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-           
+            const block = self.chain.find(block => block.hash === hash);
+            if (typeof block !== 'undefined') {
+                resolve(block)
+            } else {
+                reject(Error('No block with this hash!'))
+            }
         });
     }
 
@@ -172,6 +191,20 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
+
+            self.chain.forEach( async (blockData) => {
+                
+                    let data = await blockData.getBData();
+                    if (data) {
+                    
+                        if (data.owner === address) {
+                    
+                            stars.push(data);
+                        }
+                    }
+            })
+            resolve(stars);
+            reject("Get stars failed.");
             
         });
     }
@@ -186,6 +219,31 @@ class Blockchain {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
+
+            let validatedBlocks = [];
+            self.chain.forEach((block, index) => {
+
+                if (block.height > 0) {
+                    const previousBlock = self.chain[index - 1];
+                    if (block.previousBlockHash !== previousBlock.hash) {
+
+                        errorLog.push(`Block ${index} has a hash mismatch with the previous block`);
+                    }
+                }
+
+                validatedBlocks.push(block.validate());
+            })
+
+            Promise.all(validatedBlocks).then(validatedBlocks=> {
+
+                validatedBlocks.forEach((valid, index) => {
+
+                    if (!valid) {
+                        errorLog.push(`Block ${index} has an invalid hash value of ${self.chain[index].hash}.`)
+                    }
+                });
+                resolve(errorLog);
+            });
             
         });
     }
