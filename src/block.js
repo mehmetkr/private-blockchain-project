@@ -49,10 +49,10 @@ class Block {
             self.hash = curBlHash;
             if(curBlHash != cHash) {
             // Returning the Block is not valid
-                reject(new Error(currentBlockHash + " is not equal to " + checkHash));
+                resolve(false);
             } else{
             // Returning the Block is valid
-                resolve(self);
+                resolve(true);
             }
         });
     }
